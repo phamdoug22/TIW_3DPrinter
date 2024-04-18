@@ -16,14 +16,15 @@ class PrintJob:
     """
     id_counter = 0 # Use this to keep track of last ID
 
-    def __init__(self, job_name, base_time, cost, profit):
+    def __init__(self, job_name, base_time, cost, revenue):
         """
         Initializes PrintJob class with the type of job and base processing time
         """
         self.job_name = job_name
         self.base_time = base_time
         self.cost = cost
-        self.profit = profit
+        self.revenue = revenue
+        self.profit = revenue - cost
         self.job_id = PrintJob.id_counter  # Assign an ID to the job
         PrintJob.id_counter += 1  # Increment the ID counter to ensure uniqueness
 
@@ -44,21 +45,21 @@ class HighDetail(PrintJob):
     Represents a high-detail print job.
     """
     def __init__(self):
-        super().__init__("High Detail", 120, 45, 25)  # Assume 120 minutes as the base time
+        super().__init__("High Detail", 120, 45, 115)  # Assume 120 minutes as the base time
 
 class StandardDetail(PrintJob):
     """
     Represents a standard detail print job.
     """
     def __init__(self):
-        super().__init__("Standard Detail", 60, 30, 15)  # Assume 60 minutes as the base time
+        super().__init__("Standard Detail", 60, 30, 70)  # Assume 60 minutes as the base time
 
 class FastPrint(PrintJob):
     """
     Represents a fast print job.
     """
     def __init__(self):
-        super().__init__("Fast Print", 30, 15, 5)  # Assume 30 minutes as the base time
+        super().__init__("Fast Print", 30, 15, 35)  # Assume 30 minutes as the base time
 
 class Material:
     """
@@ -224,25 +225,67 @@ class PrinterController:
             print(f"Total cost: ${total_cost}")
             print(f"Total print time: {total_time} minutes")
 
+    def simulate_job_addition(self, remaining_budget):
+            """Simulate the addition of new jobs based on the remaining budget and calculate potential revenues."""
+            potential_jobs = []
+            for job_class in self.job_classes:
+                job = job_class()
+                if job.cost <= remaining_budget:  # Only consider if the job can be afforded with the remaining budget
+                    potential_jobs.append(job)
+            return potential_jobs
+
     def optimize_jobs(self):
-        profits = [job.profit for job in self.job_dict.values()] 
-        weights = [job.cost for job in self.job_dict.values()]
-        num_items = len(profits)
-        max_value = PrinterController.knapsack(self.budget, weights, profits, num_items)  # Call as static method
-        print(f"Maximum profit for TIW achievable with current budget (${self.budget}): ${max_value}")
+        current_jobs = list(self.job_dict.values())
+        remaining_budget = self.budget - sum(job.cost for job in current_jobs)
+        potential_jobs = self.simulate_job_addition(remaining_budget)
+
+        # Combine current and potential jobs for optimization
+        all_jobs = current_jobs + potential_jobs
+        weights = [job.cost for job in all_jobs]
+        values = [job.revenue for job in all_jobs]
+        n = len(all_jobs)
+
+        # Apply the knapsack algorithm to find the best combination of jobs
+        max_revenue, chosen_jobs = self.knapsack_with_tracking(self.budget, weights, values, n)
+
+        # Calculate job counts
+        # job_counts = {job.job_name: 0 for job in self.job_classes}
+        # for job in chosen_jobs:
+        #     job_counts[job.job_name] += 1
+
+        print(f"Maximum revenue achievable with current and potential jobs within budget (${self.budget}): ${max_revenue}")
+        # for job_name, count in job_counts.items():
+        #     print(f"# of {job_name} jobs = {count}")
 
     @staticmethod
-    def knapsack(W, wt, val, n):
-        K = [[0 for x in range(W + 1)] for x in range(n + 1)]
-        for i in range(n + 1):
-            for w in range(W + 1):
-                if i == 0 or w == 0:
-                    K[i][w] = 0
-                elif wt[i-1] <= w:
-                    K[i][w] = max(val[i-1] + K[i-1][w-wt[i-1]], K[i-1][w])
+    def knapsack_with_tracking(W, wt, val, n):
+        K = [[0 for x in range(W + 1)] for _ in range(n + 1)]
+        for i in range(1, n+1):
+            for w in range(1, W+1):
+                if wt[i-1] <= w:
+                    if val[i-1] + K[i-1][w-wt[i-1]] > K[i-1][w]:
+                        K[i][w] = val[i-1] + K[i-1][w-wt[i-1]]
+                    else:
+                        K[i][w] = K[i-1][w]
                 else:
                     K[i][w] = K[i-1][w]
-        return K[n][W]   
+
+        # Determine which items to include in the optimal set
+        result = K[n][W]
+        w = W
+        chosen_jobs = []
+        for i in range(n, 0, -1):
+            if result <= 0:
+                break
+            if result == K[i-1][w]:
+                continue
+            else:
+                # This item is included.
+                chosen_jobs.append(val[i-1])
+                result -= val[i-1]
+                w -= wt[i-1]
+
+        return K[n][W], chosen_jobs
     
 
     def start(self):
