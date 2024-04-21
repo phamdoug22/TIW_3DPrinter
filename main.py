@@ -9,6 +9,9 @@ From there you can optimize the numbero f high qualtiy print jobs you can do
 say you get a budget to spend
 """
 
+import stack
+from queue import Queue
+
 class PrintJob:
     """
     Defines the base class for print jobs (whether it be high (slow), standard, or fast).
@@ -134,9 +137,12 @@ class PrinterController:
         Initializes the PrinterController with a list of available print jobs.
         """
         self.job_classes = [HighDetail, StandardDetail, FastPrint]
+        self.material_classes = [PLA, ABS, Nylon]
         # Create a dictionary to store jobs with respective IDs as keys
         self.job_dict = {}
         self.budget = budget
+        self.job_queue = Queue() # Create job queue
+        # self.job_stack = Stack()  # Stack to hold jobs that don't fit the budget
 
     def select_job(self):
         """
@@ -150,10 +156,13 @@ class PrinterController:
         job_choice = 0
         while job_choice < 1 or job_choice > len(self.job_classes):
             job_choice = int(input("Please enter the number of your job choice: "))
+            if job_choice < 1 or job_choice > len(self.job_classes):
+                print("Invalid choice. Please enter the number 1, 2, or 3.")
 
         # Create a new instance of the selected job class
         selected_job = self.job_classes[job_choice - 1]()
         self.add_job_to_dict(selected_job)
+            
         return selected_job
 
     def add_job_to_dict(self, job):
@@ -162,6 +171,7 @@ class PrinterController:
         This ensures each job added is unique and has a unique ID.
         """
         self.job_dict[job.job_id] = job
+        self.job_queue.enqueue(job.job_id)  # Add job ID to the queue
         print(f"\nAdded Job ID {job.job_id} to the system.")
 
     def get_job_by_id(self, job_id):
@@ -180,12 +190,21 @@ class PrinterController:
         Allows the user to customize their selected job with different materials.
         """
         materials = []
+        valid_choices = {1: PLA, 2: ABS, 3: Nylon}  # Maps valid choices to material classes
+        
         print("\nAvailable materials:")
-        print("1. PLA")
-        print("2. ABS")
-        print("3. Nylon")
-        choice = input("Enter the numbers of the materials you want to use separated by commas: ")
-        choices = map(int, choice.split(','))
+        for count, material_class in enumerate(self.material_classes, start = 1):
+            # Display example instances of each material class
+            print(f"{count}. {material_class().__str__()}")
+
+        while True:
+            choice_input = input("Enter the numbers of the materials you want to use separated by commas (e.g., 1,2): ")
+            choices = list(map(int, choice_input.split(',')))  # Convert input to list of integers
+
+            if all(choice in valid_choices for choice in choices):  # Use list comprehension to check if all entries are valid
+                break
+            else:
+                print(f"Invalid choice. Please enter between 1-3 seperated by commas.")
 
         for choice in choices:
             if choice == 1:
@@ -205,8 +224,12 @@ class PrinterController:
         if self.budget >= total_cost:
             self.budget -= total_cost
             print(f"Processed {job} with settings {settings}. Total cost: ${total_cost}. Remaining budget: ${self.budget}")
+            self.job_queue.dequeue()  # Remove job from queue after processing
         else:
             print("Not enough budget to process this job.")
+            print(f"Job ID {job.job_id} was out of the budget, so it was removed.")
+            self.job_dict.pop(job.job_id)
+            self.job_queue.dequeue()  # Remove job from queue after rejecting/not processing
     
     def review_jobs(self):
         """
@@ -286,7 +309,6 @@ class PrinterController:
                 w -= wt[i-1]
 
         return K[n][W], chosen_jobs
-    
 
     def start(self):
         """
@@ -312,9 +334,7 @@ class PrinterController:
                 print("Thank you for using the printer. Goodbye!")
                 break
             else:
-                print("\nInvalid choice. Please enter 1, 2, or 3.")
-    
-    
+                print("\nInvalid choice. Please enter 1, 2, or 3.")    
 
 def main():
     """
