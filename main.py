@@ -257,7 +257,7 @@ class PrinterController:
                     potential_jobs.append(job)
             return potential_jobs
 
-    def optimize_jobs(self):
+    def optimize_num_jobs(self):
         current_jobs = list(self.job_dict.values())
         remaining_budget = self.budget - sum(job.cost for job in current_jobs)
         potential_jobs = self.simulate_job_addition(remaining_budget)
@@ -265,50 +265,100 @@ class PrinterController:
         # Combine current and potential jobs for optimization
         all_jobs = current_jobs + potential_jobs
         weights = [job.cost for job in all_jobs]
-        values = [job.revenue for job in all_jobs]
-        n = len(all_jobs)
+
+        price = 0
+        values = [10, 50, 100] # all prices
+
+        n = len(values)
 
         # Apply the knapsack algorithm to find the best combination of jobs
-        max_revenue, chosen_jobs = self.knapsack_with_tracking(self.budget, weights, values, n)
-
+        # max_revenue, chosen_jobs = self.knapsack_with_tracking(self.budget, weights, values, n)
+        print("3: Number prints") # whatever is the cheapest
         # Calculate job counts
         # job_counts = {job.job_name: 0 for job in self.job_classes}
         # for job in chosen_jobs:
         #     job_counts[job.job_name] += 1
+        value, optimal = self.knapsack_with_keep(values, weights, n, remaining_budget)
+        print(value, optimal)
 
-        print(f"Maximum revenue achievable with current and potential jobs within budget (${self.budget}): ${max_revenue}")
+        # print(f"Maximum revenue achievable with current and potential jobs within budget (${self.budget}): ${max_revenue}")
         # for job_name, count in job_counts.items():
         #     print(f"# of {job_name} jobs = {count}")
 
-    @staticmethod
-    def knapsack_with_tracking(W, wt, val, n):
-        K = [[0 for x in range(W + 1)] for _ in range(n + 1)]
-        for i in range(1, n+1):
-            for w in range(1, W+1):
-                if wt[i-1] <= w:
-                    if val[i-1] + K[i-1][w-wt[i-1]] > K[i-1][w]:
-                        K[i][w] = val[i-1] + K[i-1][w-wt[i-1]]
-                    else:
-                        K[i][w] = K[i-1][w]
+    # @staticmethod
+    # def knapsack_with_tracking(W, wt, val, n):
+    #     K = [[0 for x in range(W + 1)] for _ in range(n + 1)]
+    #     for i in range(1, n+1):
+    #         for w in range(1, W+1):
+    #             if wt[i-1] <= w:
+    #                 if val[i-1] + K[i-1][w-wt[i-1]] > K[i-1][w]:
+    #                     K[i][w] = val[i-1] + K[i-1][w-wt[i-1]]
+    #                 else:
+    #                     K[i][w] = K[i-1][w]
+    #             else:
+    #           K[i][w] = K[i-1][w]
+    #     # Determine which items to include in the optimal set
+    #     result = K[n][W]
+    #     w = W
+    #     chosen_jobs = []
+    #     for i in range(n, 0, -1):
+    #         if result <= 0:
+    #             break
+    #         if result == K[i-1][w]:
+    #             continue
+    #         else:
+    #             # This item is included.
+    #             chosen_jobs.append(val[i-1])
+    #             result -= val[i-1]
+    #             w -= wt[i-1]
+    #     return K[n][W], chosen_jobs
+
+    # Here is the DP soplution Buttom-UP, Iterative using DP table
+    def knapsack_with_keep(self, values, weights, n, cap_weight):
+    
+        dp = [[0 for x in range(cap_weight+1)] for x in range(n+1)]
+        keep = [[0 for x in range(cap_weight+1)] for x in range(n+1)]
+      
+      
+        for i in range(n+1):
+            for w in range(cap_weight+1):
+                if(i == 0 or w ==0):
+                    dp[i][w]=0   
+                elif(weights[i-1]<= w):
+                    dp[i][w] = max(dp[i-1][w], values[i-1] + dp[i-1][w - weights[i-1]])
+                    keep[i][w] = 1
                 else:
-                    K[i][w] = K[i-1][w]
-
-        # Determine which items to include in the optimal set
-        result = K[n][W]
-        w = W
-        chosen_jobs = []
+                    dp[i][w] = dp[i-1][w]
+                    keep[i][w] = 0
+      
+        # # Now we print out which items are selected
+        # k = cap_weight
+        # for i in range(n+1, 0, -1):
+        #   if keep[i][k] == 1:
+        #     print(i)
+        #     k = k - weights[i]
+      
+      
+        # Now we print out which items are selected 
+        # 
+        opt=dp[n][cap_weight]
+        w = cap_weight
         for i in range(n, 0, -1):
-            if result <= 0:
-                break
-            if result == K[i-1][w]:
-                continue
+            if opt <= 0:
+              break
+            if opt == dp[i][w]:
+              continue
             else:
-                # This item is included.
-                chosen_jobs.append(val[i-1])
-                result -= val[i-1]
-                w -= wt[i-1]
+              # This item is included.
+              print((i, weights[i], values[i]))
+          
+        # Since this weight is included
+        # its value is deducted
+        opt = opt - values[i ]
+        w = w - weights[i]
+   
+        return dp, dp[n][cap_weight]
 
-        return K[n][W], chosen_jobs
 
     def start(self):
         """
@@ -318,7 +368,7 @@ class PrinterController:
             print("\nWelcome to Texas InventionWork's Craftbot 3D printer queue management system!\n")
             print("1. Start a new print job")
             print("2. Review all jobs") # Show total cost and dollars in budget left
-            print("3. Maximize Profit") # Maximize revenue based on the total dollars left
+            print("3. Maximize Quantity") # Maximize the number of prints based on the total dollars left
             print("4. Exit")
             choice = input("Enter your choice (1-3): ")
 
@@ -329,7 +379,7 @@ class PrinterController:
             elif choice == '2':
                 self.review_jobs()
             elif choice == '3':
-                self.optimize_jobs()
+                self.optimize_num_jobs()
             elif choice == '4':
                 print("Thank you for using the printer. Goodbye!")
                 break
