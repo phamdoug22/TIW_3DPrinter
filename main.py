@@ -9,7 +9,7 @@
     or search things up. Additionally, users can review all jobs processed in addition
     to optimizing the maximum number of the best quality print jobs they can get utilizing
     the knapsack algorithm in combination with a simulation of potential jobs to be added to
-    see how much moretheir remaining budget can afford.
+    see how much more their remaining budget can afford.
 
     Student Name: Douglas Pham
     Student UT EID: ddp2328
@@ -270,7 +270,6 @@ class PrinterController:
                     break
         return potential_jobs
 
-
     def optimize_num_jobs(self):
         current_jobs = list(self.job_dict.values())
         remaining_budget = self.budget - sum(job.cost for job in current_jobs)
@@ -287,25 +286,7 @@ class PrinterController:
 
         for index in chosen_jobs_indices:
             print(f"Included Job: {potential_jobs[index].job_name}, Total Cost: ${potential_jobs[index].cost + 10}, Value: {values[index]}")
-# #########################################
-#         selected_jobs = []
-#         for index in chosen_jobs_indices:
-#             selected_jobs.append(potential_jobs[index])
 
-#         # Counting the quantity of each type of selected job
-#         job_counts = {}
-#         for job in selected_jobs:
-#             if job.job_name in job_counts:
-#                 job_counts[job.job_name] += 1
-#             else:
-#                 job_counts[job.job_name] = 1
-
-#         # Displaying the selected jobs along with their quantities
-#         for job_name, count in job_counts.items():
-#             print(f"Included Job: {job_name}, Quantity: {count}, Total Cost: ${(potential_jobs[index].cost + 10) * count}")
-
-#         return selected_jobs
-####################################
     def knapsack(self, W, wt, val, n):
         K = [[0 for x in range(W + 1)] for _ in range(n + 1)]
         for i in range(1, n+1):
@@ -328,7 +309,6 @@ class PrinterController:
                 w -= wt[i-1]
 
         return K[n][W], items_selected
-       
 
     def start(self):
         """
